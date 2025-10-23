@@ -5,141 +5,195 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>لوحة المؤشرات المالية للبلديات</title>
 
-  <!-- ArcGIS JS (AMD) -->
+  <!-- ArcGIS API (AMD) -->
   <link rel="stylesheet" href="https://js.arcgis.com/4.29/esri/themes/light/main.css" />
   <script src="https://js.arcgis.com/4.29/"></script>
 
+  <!-- Shield Dojo while loading Chart.js (prevents multipleDefine) -->
+  <script>window.__amd_define_backup__ = window.define; window.define = undefined;</script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+  <script>window.define = window.__amd_define_backup__; window.__amd_define_backup__ = undefined;</script>
+
   <style>
     :root{
-      --bg:#f8fafc;        /* خلفية فاتحة جدًا */
-      --fg:#0f172a;        /* نص داكن */
-      --muted:#64748b;     /* نص ثانوي */
-      --brand:#0ea5e9;     /* أزرق */
-      --accent:#22c55e;    /* أخضر */
-      --frame:#000000;     /* حدود سوداء 2px */
-      --white:#ffffff;     /* أبيض */
-      --grey:#9ca3af;      /* رمادي للأعمدة المستهدفة */
+      --bg:#ffffff; --panel:#ffffff; --frame:#000; --text:#0f172a;
+      --ok:#22c55e; --no:#ef4444; --grey:#9ca3af; --brand:#0ea5e9;
+      --fs:22px; --fs-title:28px; --fs-h1:34px; --fs-small:18px;
     }
-    html, body { height: 100%; margin: 0; font-family: "Cairo", system-ui, sans-serif; background: var(--bg); color: var(--fg); }
-    .panel   { margin: 14px auto; max-width: 1420px; background: var(--white); padding: 16px; border-radius: 14px; box-shadow: 0 2px 8px rgba(0,0,0,.06); border:2px solid var(--frame); }
-    #viewDiv { height: 560px; border-radius: 12px; margin-bottom: 12px; border:2px solid var(--frame); }
-    .toolbar { display:flex; gap:12px; align-items:flex-end; margin-bottom:12px; flex-wrap: wrap; }
-    .toolbar h2 { margin:0; color: var(--brand); }
-    .muted { color:var(--muted); font-size:.9em; }
-    .fld { display:flex; flex-direction:column; gap:4px; }
-    .in { border: 2px solid var(--frame); border-radius:12px; padding:8px 12px; min-width: 170px; background:var(--white); }
-    .btn { border:2px solid var(--frame); background:var(--white); border-radius:12px; padding:8px 14px; cursor:pointer; }
-    .btn:hover { background:#e2f2ff; }
+    html, body { margin:0; padding:0; background:var(--bg); color:var(--text);
+                 font-family:"Cairo", Arial, sans-serif; font-size:var(--fs); height:100%; }
 
-    .kpi-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(230px,1fr)); gap: 12px; margin-bottom: 12px; }
-    .kpi-card { background: var(--white); border:2px solid var(--frame); border-radius: 12px; text-align: center; padding: 12px; }
-    .kpi-title { font-size:.95rem; color:var(--muted); }
-    .kpi-value { font-size: 1.5em; font-weight: 800; color: var(--fg); margin-top: 6px; display:flex; align-items:center; justify-content:center; gap:10px; }
-    .tri { width:0; height:0; border-left:7px solid transparent; border-right:7px solid transparent; }
-    .tri-up   { border-bottom:12px solid var(--accent); }
-    .tri-down { border-top:12px solid #dc2626; }
+    /* Fancy but clean */
+    .shadow { box-shadow: 0 6px 18px rgba(0,0,0,.06); }
+    .chip   { background:#e0f2fe; color:#0369a1; padding:4px 10px; border-radius:999px; border:2px solid #0284c7; }
 
-    .charts { display: grid; grid-template-columns: 1fr; gap: 12px; margin-top: 12px; }
-    .chart-box { background: var(--white); border:2px solid var(--frame); border-radius: 12px; padding: 12px; }
-    .chart-title { margin:0 0 8px 0; font-weight:700; color: var(--brand); }
-    .grid-yn { display:grid; grid-template-columns: repeat(auto-fit, minmax(240px,1fr)); gap:12px; margin-top:10px; }
-    canvas { width: 100%; height: 320px; }
-    .yn-canvas { height: 240px; }
+    /* Shell */
+    .shell{ min-height:100vh; display:grid; grid-template-rows:auto auto 1fr auto; }
+
+    header{ padding:16px 20px; border-bottom:3px solid var(--frame);
+            background:#e0f2fe; display:flex; align-items:center; justify-content:space-between; gap:12px; }
+    header h1{ margin:0; font-size:var(--fs-h1); color:#000; letter-spacing:.2px; }
+    #scope{ font-size:var(--fs-small); color:#000; }
+
+    /* KPIs row */
+    .kpis{
+      display:grid; grid-template-columns: repeat(5, minmax(240px,1fr)); gap:14px;
+      padding:14px 14px 0 14px;
+    }
+    .kpi{ background:#ffffff; border:3px solid var(--frame); border-radius:14px; padding:14px; text-align:center; }
+    .kpi .label{ color:#111; font-weight:800; font-size:20px; }
+    .kpi .value{ font-size:32px; font-weight:900; margin-top:8px; color:var(--brand);
+                 display:flex; align-items:center; justify-content:center; gap:12px; }
+    .tri{ width:0; height:0; border-left:10px solid transparent; border-right:10px solid transparent; }
+    .tri-up{ border-bottom:16px solid var(--ok); }
+    .tri-down{ border-top:16px solid #dc2626; }
+
+    /* Main grid: left pies / center map / right filters; then bottom chart full width */
+    .grid{
+      display:grid;
+      grid-template-columns: 470px 1fr 380px;   /* wider left to host 3x2 pies */
+      grid-template-rows: 1fr auto;
+      gap:14px;
+      padding:14px;
+      min-height:0;
+    }
+    .card{ background:var(--panel); border:3px solid var(--frame); border-radius:14px; padding:14px; }
+    .title{ margin:0 0 10px 0; font-weight:900; color:#000; font-size:var(--fs-title); display:flex; align-items:center; gap:10px; }
+
+    /* Map center (dominant) */
+    #mapCard{ grid-column:2; grid-row:1; display:flex; flex-direction:column; }
+    #viewDiv{ flex:1 1 auto; min-height:64vh; border:3px solid var(--frame); border-radius:12px; background:#fff; }
+
+    /* LEFT pies: GRID (2 rows x 3 columns), smaller size, perfect circles */
+    #pies{ grid-column:1; grid-row:1; display:flex; flex-direction:column; gap:12px; }
+    .pies-grid{
+      display:grid;
+      grid-template-columns: repeat(3, 1fr);
+      grid-auto-rows: 1fr;
+      gap:12px;
+    }
+    .pie-card{ background:#fff; border:3px solid var(--frame); border-radius:12px; padding:8px; }
+    .pie-title{ text-align:center; font-weight:900; margin-bottom:6px; font-size:18px; }
+    .pie-wrap{ width:100%; aspect-ratio:1/1; }
+    .pie-canvas{ width:100% !important; height:100% !important; display:block; }
+    .legend-mini{ text-align:center; font-size:16px; color:#334155; margin-top:4px; }
+
+    /* Right filters (sticky) */
+    #filters{ grid-column:3; grid-row:1; position:sticky; top:14px; height:fit-content; display:flex; flex-direction:column; gap:14px; }
+    label{ font-weight:900; color:#000; font-size:20px; }
+    .in,.btn{ font-size:20px; padding:12px; border:3px solid var(--frame); border-radius:12px; background:#fff; color:#000; }
+    .btn{ cursor:pointer; }
+    .btn:hover{ background:#dbeafe; }
+
+    /* Bottom revenue chart */
+    #bottom{ grid-column:1 / -1; grid-row:2; }
+    #chartRevenue{ width:100% !important; height:420px !important; } /* fixed height => no stretch */
+
+    @media (max-width:1400px){
+      .grid{ grid-template-columns: 1fr; grid-template-rows: auto auto auto; }
+      #pies, #mapCard, #filters, #bottom{ grid-column:1; }
+      #viewDiv{ min-height:56vh; }
+      .kpis{ grid-template-columns: repeat(2,1fr); }
+      .pies-grid{ grid-template-columns: repeat(3, minmax(120px,1fr)); }
+    }
   </style>
 </head>
-
 <body>
-  <div class="panel">
-    <div class="toolbar">
-      <h2>لوحة المؤشرات المالية للبلديات</h2>
-      <span id="scopeLabel" class="muted">— عرض جميع البلديات</span>
+  <div class="shell">
+    <header class="shadow">
+      <h1>لوحة المؤشرات المالية للبلديات</h1>
+      <div id="scope" class="chip">عرض جميع البلديات</div>
+    </header>
 
-      <div class="fld">
-        <label class="muted">الفئة (اختياري)</label>
-        <select id="filterCategory" class="in"></select>
-      </div>
-      <div class="fld">
-        <label class="muted">تحقيق المستهدف</label>
-        <select id="filterAchieved" class="in" required>
-          <option value="">— يرجى الاختيار —</option>
-          <option value="نعم">نعم</option>
-          <option value="لا">لا</option>
-        </select>
-      </div>
-      <div class="fld">
-        <label class="muted">بحث بالبلدية</label>
-        <input id="searchName" class="in" placeholder="أدخل اسم البلدية" />
-      </div>
+    <!-- KPIs -->
+    <section class="kpis">
+      <div class="kpi shadow"><div class="label">إجمالي الإيرادات المستهدفة</div><div id="kpiTarget" class="value">—</div></div>
+      <div class="kpi shadow"><div class="label">إجمالي الإيرادات المحصّلة</div><div id="kpiCollected" class="value">—</div></div>
+      <div class="kpi shadow"><div class="label">نسبة تحقيق الإيرادات (×100)</div><div id="kpiAchPct" class="value">—</div></div>
+      <div class="kpi shadow"><div class="label">متوسط الصرف (×100)</div><div id="kpiAvgSpend" class="value">—</div></div>
+      <div class="kpi shadow"><div class="label">نسبة الرضا (×100)</div><div id="kpiSatisfaction" class="value">—</div></div>
+    </section>
 
-      <button id="resetBtn" class="btn">إظهار الكل</button>
-      <button id="clearFilters" class="btn">مسح المرشحات</button>
-    </div>
-
-    <div id="viewDiv"></div>
-
-    <div class="kpi-grid">
-      <div class="kpi-card">
-        <div class="kpi-title">إجمالي الإيرادات المستهدفة</div>
-        <div id="kpiTarget" class="kpi-value">—</div>
-      </div>
-      <div class="kpi-card">
-        <div class="kpi-title">إجمالي الإيرادات المحصّلة</div>
-        <div id="kpiCollected" class="kpi-value">—</div>
-      </div>
-      <div class="kpi-card">
-        <div class="kpi-title">نسبة تحقيق الإيرادات (×100)</div>
-        <div id="kpiAchPct" class="kpi-value">—</div>
-      </div>
-      <div class="kpi-card">
-        <div class="kpi-title">متوسط الصرف (×100)</div>
-        <div id="kpiAvgSpend" class="kpi-value">—</div>
-      </div>
-      <div class="kpi-card">
-        <div class="kpi-title">نسبة رضا المواطنين (×100)</div>
-        <div id="kpiSatisfaction" class="kpi-value">—</div>
-      </div>
-    </div>
-
-    <div class="charts">
-      <div class="chart-box">
-        <h3 class="chart-title">الإيرادات المستهدفة مقابل المحصّلة (ألوان البلديات مطابقة للخريطة)</h3>
-        <canvas id="chartRevenue"></canvas>
-      </div>
-    </div>
-
-    <div class="charts" style="margin-top:10px;">
-      <div class="chart-box" style="grid-column: 1 / -1;">
-        <h3 class="chart-title">مؤشرات نعم/لا</h3>
-        <div class="grid-yn">
-          <div><div class="muted">يوجد مطار</div><canvas id="yn_airport" class="yn-canvas"></canvas></div>
-          <div><div class="muted">يوجد طريق دولي</div><canvas id="yn_intlroad" class="yn-canvas"></canvas></div>
-          <div><div class="muted">يوجد مستشفى</div><canvas id="yn_hospital" class="yn-canvas"></canvas></div>
-          <div><div class="muted">يوجد مدينة صناعية</div><canvas id="yn_industrial" class="yn-canvas"></canvas></div>
-          <div><div class="muted">يوجد نادي</div><canvas id="yn_club" class="yn-canvas"></canvas></div>
-          <div><div class="muted">حققت المستهدف</div><canvas id="yn_achieved" class="yn-canvas"></canvas></div>
+    <!-- Main grid -->
+    <main class="grid">
+      <!-- LEFT pies -->
+      <aside id="pies">
+        <div class="title">مؤشرات نعم/لا</div>
+        <div class="pies-grid">
+          <div class="pie-card shadow">
+            <div class="pie-title">يوجد مطار</div>
+            <div class="pie-wrap"><canvas id="yn_airport" class="pie-canvas"></canvas></div>
+            <div class="legend-mini">نعم / لا</div>
+          </div>
+          <div class="pie-card shadow">
+            <div class="pie-title">يوجد طريق دولي</div>
+            <div class="pie-wrap"><canvas id="yn_intlroad" class="pie-canvas"></canvas></div>
+            <div class="legend-mini">نعم / لا</div>
+          </div>
+          <div class="pie-card shadow">
+            <div class="pie-title">يوجد مستشفى</div>
+            <div class="pie-wrap"><canvas id="yn_hospital" class="pie-canvas"></canvas></div>
+            <div class="legend-mini">نعم / لا</div>
+          </div>
+          <div class="pie-card shadow">
+            <div class="pie-title">يوجد مدينة صناعية</div>
+            <div class="pie-wrap"><canvas id="yn_industrial" class="pie-canvas"></canvas></div>
+            <div class="legend-mini">نعم / لا</div>
+          </div>
+          <div class="pie-card shadow">
+            <div class="pie-title">يوجد نادي</div>
+            <div class="pie-wrap"><canvas id="yn_club" class="pie-canvas"></canvas></div>
+            <div class="legend-mini">نعم / لا</div>
+          </div>
+          <div class="pie-card shadow">
+            <div class="pie-title">حققت المستهدف</div>
+            <div class="pie-wrap"><canvas id="yn_achieved" class="pie-canvas"></canvas></div>
+            <div class="legend-mini">نعم / لا</div>
+          </div>
         </div>
-      </div>
-    </div>
+      </aside>
+
+      <!-- CENTER map -->
+      <section id="mapCard" class="card shadow">
+        <div class="title">الخريطة</div>
+        <div id="viewDiv" aria-label="الخريطة"></div>
+      </section>
+
+      <!-- RIGHT filters -->
+      <aside id="filters" class="card shadow">
+        <div class="title">المرشحات</div>
+        <div><label for="filterCategory">الفئة</label><select id="filterCategory" class="in"></select></div>
+        <div><label for="filterAchieved">تحقيق المستهدف</label>
+          <select id="filterAchieved" class="in">
+            <option value="">— الكل —</option>
+            <option value="نعم">نعم</option>
+            <option value="لا">لا</option>
+          </select>
+        </div>
+        <div><label for="searchName">بحث بالبلدية</label><input id="searchName" class="in" placeholder="أدخل اسم البلدية" /></div>
+        <div style="display:flex;gap:10px;"><button id="resetBtn" class="btn">إظهار الكل</button><button id="clearBtn" class="btn">مسح المرشحات</button></div>
+      </aside>
+
+      <!-- BOTTOM bar chart -->
+      <section id="bottom" class="card shadow">
+        <div class="title">الإيرادات المستهدفة مقابل المحصّلة</div>
+        <canvas id="chartRevenue"></canvas>
+      </section>
+    </main>
+
+    
   </div>
 
-  <!-- ArcGIS app -->
   <script>
-  require([
-    "esri/Map",
-    "esri/views/MapView",
-    "esri/layers/FeatureLayer",
-    "esri/renderers/UniqueValueRenderer"
-  ], function (Map, MapView, FeatureLayer, UniqueValueRenderer) {
-
+    /* ================= Config & helpers ================= */
     const SERVICE_URL = "https://services5.arcgis.com/pbXsNv81cTqt6LrT/arcgis/rest/services/Map/FeatureServer/0";
-
     const FIELDS = {
       name: "البلدية",
       target: "الإيراد_المستهدف",
       collected: "الإيراد_المحصّل",
-      avgSpend: "متوسط_الصرف",     // ×100 للعرض
-      achPctField: "نسبة_الإيراد_", // ×100 للعرض والخريطة
-      satisfaction: "نسبة_الرضا",   // ×100
+      achPct: "نسبة_الإيراد_",      // نستخدمه مباشرة ثم ×100 للعرض
+      avgSpend: "متوسط_الصرف",      // ×100 للعرض
+      satisfaction: "نسبة_الرضا",   // ×100 للعرض
       category: "الفئة",
       yn_airport: "يوجد_مطار",
       yn_intlroad: "يوجد_طريق_دولي",
@@ -148,234 +202,197 @@
       yn_club: "يوجد_نادي",
       yn_achieved: "حققت_المستهدف"
     };
-
-    function toNumber(v) {
-      if (v == null) return 0;
-      let s = String(v).trim();
-      const map = {'٠':'0','١':'1','٢':'2','٣':'3','٤':'4','٥':'5','٦':'6','٧':'7','٨':'8','٩':'9','٫':'.','٬':','};
-      s = s.replace(/[٠-٩٫٬]/g, ch => map[ch] ?? ch).replace(/,/g, '');
-      const n = Number(s);
-      return isNaN(n) ? 0 : n;
-    }
-    const fmt = (n,d=1)=>isNaN(n)?'—':new Intl.NumberFormat('ar-SA',{maximumFractionDigits:d}).format(n);
-
-    // ألوان فريدة لكل بلدية (خريطة + أعمدة) + إطار أسود 2px للخريطة عبر CSS أعلاه
-    const colorMap = {};
-    function hslToRgbArray(h, s, l) {
-      s = Math.max(0, Math.min(1, s)); l = Math.max(0, Math.min(1, l));
-      const c = (1 - Math.abs(2*l - 1)) * s; const hp = h/60; const x = c * (1 - Math.abs(hp % 2 - 1));
-      let [r,g,b] = [0,0,0];
-      if (0<=hp && hp<1) [r,g,b] = [c,x,0];
-      else if (1<=hp && hp<2) [r,g,b]=[x,c,0];
-      else if (2<=hp && hp<3) [r,g,b]=[0,c,x];
-      else if (3<=hp && hp<4) [r,g,b]=[0,x,c];
-      else if (4<=hp && hp<5) [r,g,b]=[x,0,c];
-      else if (5<=hp && hp<6) [r,g,b]=[c,0,x];
-      const m = l - c/2; return [Math.round((r+m)*255), Math.round((g+m)*255), Math.round((b+m)*255)];
-    }
-    function genColor(i, n) {
-      const h = (i * (360 / Math.max(1,n))) % 360; const [r,g,b]=hslToRgbArray(h, 0.65, 0.55); return `rgb(${r},${g},${b})`;
-    }
-
-    const layer = new FeatureLayer({ url: SERVICE_URL, outFields: ["*"], title: "Finance_Data", popupEnabled: false });
-
-    const map = new Map({ basemap: "osm", layers: [layer] });
-    const view = new MapView({ container: "viewDiv", map });
-
-    let allRows = []; let filteredRows = []; let selectedName = null; let highlight = null; let layerViewRef = null;
     const $ = (id)=>document.getElementById(id);
+    const fmt = (n,d=1)=>isNaN(n)?'—':new Intl.NumberFormat('ar-SA',{maximumFractionDigits:d}).format(n);
+    const toNumber = (v)=>{ if(v==null) return 0; let s=String(v);
+      const map={'٠':'0','١':'1','٢':'2','٣':'3','٤':'4','٥':'5','٦':'6','٧':'7','٨':'8','٩':'9','٫':'.','٬':','};
+      s=s.replace(/[٠-٩٫٬]/g,ch=>map[ch]??ch).replace(/,/g,''); const n=Number(s); return isNaN(n)?0:n; };
 
-    function updateScopeLabel(rows) {
-      const label = $("scopeLabel");
-      if (selectedName) label.textContent = `— عرض بلدية: ${selectedName} — عدد: ${rows.length}`;
-      else label.textContent = `— عرض جميع البلديات (حسب المرشحات) — عدد: ${rows.length}`;
-    }
+    let allRows=[], filtered=[], selectedName=null, highlight=null;
+    let revenueChart=null;
 
-    function setAchTriangle(container, pctVal) {
-      container.innerHTML = "";
-      const spanVal = document.createElement("span");
-      spanVal.textContent = (pctVal == null ? "—" : fmt(pctVal) + "%");
-      container.appendChild(spanVal);
-      if (pctVal == null) return;
+    /* ================= KPI helpers ================= */
+    function setTriangle(el, pct){
+      el.innerHTML = "";
+      const valSpan = document.createElement("span");
+      valSpan.textContent = (pct==null) ? "—" : fmt(pct,1) + "%";
+      el.appendChild(valSpan);
+      if(pct==null) return;
       const tri = document.createElement("span");
-      tri.className = "tri " + (pctVal >= 100 ? "tri-up" : "tri-down");
-      container.appendChild(tri);
+      tri.className = "tri " + (pct >= 100 ? "tri-up" : "tri-down");
+      el.appendChild(tri);
+    }
+    function updateKPIs(rows){
+      const sum = (f)=>rows.reduce((s,r)=>s + toNumber(r[f]), 0);
+      const avg = (f)=>rows.length ? (rows.reduce((s,r)=>s + toNumber(r[f]),0) / rows.length) : 0;
+
+      const totalTarget    = sum(FIELDS.target);
+      const totalCollected = sum(FIELDS.collected);
+      const avgAchPct100   = avg(FIELDS.achPct) * 100;
+      const avgSpend100    = avg(FIELDS.avgSpend) * 100;
+      const avgSat100      = avg(FIELDS.satisfaction) * 100;
+
+      $("kpiTarget").textContent = fmt(totalTarget,0);
+      $("kpiCollected").textContent = fmt(totalCollected,0);
+      setTriangle($("kpiAchPct"), isNaN(avgAchPct100)?null:avgAchPct100);
+      $("kpiAvgSpend").textContent = fmt(avgSpend100,1) + "%";
+      $("kpiSatisfaction").textContent = fmt(avgSat100,1) + "%";
     }
 
-    function sum(rows, field) { return rows.reduce((s,v)=>s + toNumber(v[field]), 0); }
-
-    function updateKPIs(rows) {
-      const totalTarget    = sum(rows, FIELDS.target);
-      const totalCollected = sum(rows, FIELDS.collected);
-      const avgPct100      = (sum(rows, FIELDS.achPctField) / (rows.length || 1)) * 100; // ×100
-      const avgSpend100    = (sum(rows, FIELDS.avgSpend)    / (rows.length || 1)) * 100; // ×100
-      const avgSatisf100   = (sum(rows, FIELDS.satisfaction)/ (rows.length || 1)) * 100; // ×100
-
-      $("kpiTarget").textContent       = fmt(totalTarget);
-      $("kpiCollected").textContent    = fmt(totalCollected);
-      setAchTriangle($("kpiAchPct"), isNaN(avgPct100) ? null : avgPct100);
-      $("kpiAvgSpend").textContent     = fmt(avgSpend100) + "%";
-      $("kpiSatisfaction").textContent = fmt(avgSatisf100) + "%";
-    }
-
-    function buildUniqueRenderer(names) {
-      const infos = names.map((nm, i) => {
-        const c = colorMap[nm] || (colorMap[nm] = genColor(i, names.length));
-        return { value: nm, symbol: { type: "simple-fill", color: c, outline: { color: "#000", width: 1 } }, label: nm };
+    /* ================= Charts ================= */
+    function makePie(id, yes, no){
+      const existing = Chart.getChart(id); if (existing) existing.destroy();
+      return new Chart($(id), {
+        type:"doughnut",
+        data:{ labels:["نعم","لا"],
+          datasets:[{ data:[yes,no], backgroundColor:["#22c55eCC","#ef4444CC"], borderColor:"#000", borderWidth:3 }] },
+        options:{ responsive:true, maintainAspectRatio:true, plugins:{ legend:{ display:false } }, cutout:"60%" }
       });
-      return new UniqueValueRenderer({ field: FIELDS.name, defaultSymbol: { type: "simple-fill", color: [220,220,220,0.5], outline: { color: "#000", width: 1 } }, uniqueValueInfos: infos });
     }
-
-    function applyFilters() {
-      const cat = $("filterCategory").value;
-      const ach = $("filterAchieved").value; // مطلوب اختيار نعم/لا أو فراغ (لكن لدينا required على العنصر)
-      const q   = ($("searchName").value || "").trim();
-
-      filteredRows = allRows.filter(r => {
-        if (cat && r[FIELDS.category] !== cat) return false;
-        if (ach !== "" && ((r[FIELDS.yn_achieved] ?? "") !== ach)) return false;
-        if (q && !String(r[FIELDS.name] || "").includes(q)) return false;
-        return true;
-      });
-
-      const rowsForDash = selectedName ? filteredRows.filter(r => r[FIELDS.name] === selectedName) : filteredRows;
-      updateKPIs(rowsForDash); updateScopeLabel(rowsForDash);
-      window.postMessage({ type: "financeData", data: rowsForDash, fields: FIELDS, colorMap }, "*");
-    }
-
-    function populateFilters() {
-      const catSelect = $("filterCategory");
-      catSelect.innerHTML = '<option value="">— الكل —</option>';
-      const cats = [...new Set(allRows.map(r => r[FIELDS.category]).filter(Boolean))].sort();
-      cats.forEach(c => { const opt = document.createElement('option'); opt.value = c; opt.textContent = c; catSelect.appendChild(opt); });
-    }
-
-    function resetSelection() { if (highlight) highlight.remove(); highlight = null; selectedName = null; applyFilters(); }
-
-    // استقبال اختيار اسم من الرسم
-    window.addEventListener("message", (e) => {
-      const ev = e.data || {}; if (ev.type !== "selectByName" || !ev.name) return; selectedName = ev.name; applyFilters();
-      if (layerViewRef) { layerViewRef.queryFeatures({ where: `${FIELDS.name}='${String(ev.name).replace(/'/g,"''")}'` }).then((res)=>{ if (highlight) highlight.remove(); if (res.features.length){ highlight = layerViewRef.highlight(res.features[0]); view.goTo(res.features[0].geometry.extent.expand(1.5)).catch(()=>{}); } }); }
-    });
-
-    view.when(async () => {
-      await layer.when(); const info = await layer.load(); if (info.fullExtent) await view.goTo(info.fullExtent.expand(1.1));
-      const q = await layer.queryFeatures({ where: "1=1", outFields: ["*"], returnGeometry: true });
-      allRows = q.features.map(f => f.attributes);
-
-      const allNames = [...new Set(allRows.map(r => r[FIELDS.name]).filter(Boolean))];
-      allNames.forEach((nm, i) => { if (!colorMap[nm]) colorMap[nm] = genColor(i, allNames.length); });
-      layer.renderer = buildUniqueRenderer(allNames);
-
-      filteredRows = allRows; populateFilters(); applyFilters();
-
-      view.whenLayerView(layer).then((lv) => {
-        layerViewRef = lv;
-        view.on("click", async (event) => {
-          const hit = await view.hitTest(event);
-          const g = hit.results.find(r => r.graphic && r.graphic.layer === layer)?.graphic;
-          if (!g) { resetSelection(); return; }
-          if (highlight) highlight.remove(); highlight = lv.highlight(g);
-          selectedName = g.attributes[FIELDS.name] || null; applyFilters();
-          const a = g.attributes;
-          const pct100 = toNumber(a[FIELDS.achPctField]) * 100;
-          const spend100 = toNumber(a[FIELDS.avgSpend]) * 100;
-          const satisf100 = toNumber(a[FIELDS.satisfaction]) * 100;
-          const msg = `
-            <b>${a[FIELDS.name] ?? "—"}</b><br>
-            الإيراد المستهدف: ${fmt(toNumber(a[FIELDS.target]))}<br>
-            الإيراد المحصّل: ${fmt(toNumber(a[FIELDS.collected]))}<br>
-            نسبة تحقيق الإيرادات: ${fmt(pct100)}%<br>
-            متوسط الصرف: ${fmt(spend100)}%<br>
-            نسبة الرضا: ${fmt(satisf100)}%
-          `;
-          view.popup.open({ title: "تفاصيل البلدية", content: msg, location: event.mapPoint });
-        });
-
-        $("resetBtn").addEventListener("click", resetSelection);
-        $("clearFilters").addEventListener("click", () => { $("filterCategory").value = ""; $("filterAchieved").value = ""; $("searchName").value = ""; resetSelection(); });
-        $("filterCategory").addEventListener("change", applyFilters);
-        $("filterAchieved").addEventListener("change", applyFilters);
-        $("searchName").addEventListener("input", () => { clearTimeout(window.__t); window.__t = setTimeout(applyFilters, 250); });
-      });
-    });
-  });
-  </script>
-
-  <!-- Charts (ESM, isolated from Dojo) -->
-  <script type="module">
-    import { Chart, BarController, BarElement, CategoryScale, LinearScale, Legend, Title, Tooltip, ArcElement } from "https://cdn.jsdelivr.net/npm/chart.js@4.4.1/+esm";
-    Chart.register(BarController, BarElement, CategoryScale, LinearScale, Legend, Title, Tooltip, ArcElement);
-
-    let chartRevenue; const ynCharts = {};
-
-    function ensureYNChart(id, yes, no) {
-      const el = document.getElementById(id);
-      const data = { labels: ["نعم", "لا"], datasets: [{ data: [yes, no], backgroundColor: ["#22c55e", "#ef4444"], borderColor:["#000","#000"], borderWidth:2 }] };
-      const opt = { responsive: true, plugins: { legend: { position: "bottom" } }, cutout: "55%" };
-      if (!ynCharts[id]) ynCharts[id] = new Chart(el, { type: "doughnut", data, options: opt });
-      else { ynCharts[id].data = data; ynCharts[id].options = opt; ynCharts[id].update(); }
-    }
-
-    function normalizeYN(v) {
-      const s = (v ?? "").toString().trim().toLowerCase();
-      if (s === "نعم" || s === "yes" || s === "y" || s === "true" || s === "1") return "yes";
-      if (s === "لا"  || s === "no"  || s === "n" || s === "false"|| s === "0") return "no";
-      return "no";
-    }
-
-    function attachBarClick(chart, labels) {
-      chart.canvas.onclick = (evt) => {
-        const points = chart.getElementsAtEventForMode(evt, 'nearest', { intersect: true }, true);
-        if (!points.length) return; const idx = points[0].index; const name = labels[idx];
-        window.postMessage({ type: "selectByName", name }, "*");
-      };
-    }
-
-    function renderCharts(rows, fields, colorMap) {
-      const names     = rows.map(r => r[fields.name] ?? "—");
-      const targets   = rows.map(r => Number(String(r[fields.target]).replace(/,/g,'')) || 0);
-      const collected = rows.map(r => Number(String(r[fields.collected]).replace(/,/g,'')) || 0);
-
-      // ترتيب حسب المستهدف (أعلى 12)
-      const indices = targets.map((v,i)=>({i,v})).sort((a,b)=>b.v-a.v).slice(0, Math.max(1, Math.min(12, targets.length))).map(o=>o.i);
-      const labels = indices.map(i=>names[i]);
-      const targetData = indices.map(i=>targets[i]);
-      const collectedData = indices.map(i=>collected[i]);
-      const barColors = labels.map(nm => colorMap[nm] || "#0ea5e9");
-
-      const data1 = {
-        labels,
-        datasets: [
-          { label: "المستهدف", data: targetData, backgroundColor: "#9ca3af", borderColor: "#000", borderWidth: 2, categoryPercentage:0.6, barPercentage:0.9 },
-          { label: "المحصّل",  data: collectedData, backgroundColor: barColors,   borderColor: "#000", borderWidth: 2, categoryPercentage:0.6, barPercentage:0.9 }
-        ]
-      };
-      const opt1 = {
-        responsive:true,
-        plugins:{ legend:{position:"bottom"}, title:{display:true, text:"الإيرادات المستهدفة مقابل المحصّلة"} },
-        scales:{ y:{ beginAtZero:true } }
-      };
-      if (!chartRevenue) { chartRevenue = new Chart(document.getElementById("chartRevenue"), { type:"bar", data:data1, options:opt1 }); attachBarClick(chartRevenue, labels); }
-      else { chartRevenue.data = data1; chartRevenue.update(); attachBarClick(chartRevenue, labels); }
-
-      // YES/NO doughnuts
-      const ynSets = [
-        { id: "yn_airport",    field: fields.yn_airport },
-        { id: "yn_intlroad",   field: fields.yn_intlroad },
-        { id: "yn_hospital",   field: fields.yn_hospital },
-        { id: "yn_industrial", field: fields.yn_industrial },
-        { id: "yn_club",       field: fields.yn_club },
-        { id: "yn_achieved",   field: fields.yn_achieved }
+    function renderPies(rows){
+      const norm = (v)=>["نعم","yes","y","true","1"].includes(String(v??"").toLowerCase()) ? "yes" : "no";
+      const defs = [
+        {id:"yn_airport", f:FIELDS.yn_airport},
+        {id:"yn_intlroad", f:FIELDS.yn_intlroad},
+        {id:"yn_hospital", f:FIELDS.yn_hospital},
+        {id:"yn_industrial", f:FIELDS.yn_industrial},
+        {id:"yn_club", f:FIELDS.yn_club},
+        {id:"yn_achieved", f:FIELDS.yn_achieved}
       ];
-      for (const {id, field} of ynSets) {
-        let yes = 0, no = 0; for (const r of rows) (normalizeYN(r[field]) === "yes") ? yes++ : no++;
-        ensureYNChart(id, yes, no);
+      for(const {id,f} of defs){
+        let yes=0,no=0; rows.forEach(r=> norm(r[f])==="yes" ? yes++ : no++);
+        makePie(id, yes, no);
       }
     }
+    function renderRevenueBar(rows, colorMap){
+      const names=rows.map(r=>r[FIELDS.name]??"—");
+      const targets=rows.map(r=>toNumber(r[FIELDS.target]));
+      const collected=rows.map(r=>toNumber(r[FIELDS.collected]));
+      const idx=targets.map((v,i)=>({i,v})).sort((a,b)=>b.v-a.v).slice(0,Math.min(12,targets.length)).map(o=>o.i);
+      const labels=idx.map(i=>names[i]), tData=idx.map(i=>targets[i]), cData=idx.map(i=>collected[i]);
+      const colColors=labels.map(n=>colorMap[n]||"rgba(14,165,233,0.6)");
+      if(revenueChart){ revenueChart.destroy(); }
+      revenueChart=new Chart($("chartRevenue"),{ type:"bar",
+        data:{ labels, datasets:[
+          {label:"المستهدف", data:tData, backgroundColor:"#9ca3af", borderColor:"#000", borderWidth:3, categoryPercentage:0.6, barPercentage:0.9},
+          {label:"المحصّل", data:cData, backgroundColor:colColors, borderColor:"#000", borderWidth:3, categoryPercentage:0.6, barPercentage:0.9}
+        ]},
+        options:{ responsive:true, maintainAspectRatio:false, plugins:{legend:{position:"bottom"}}, scales:{y:{beginAtZero:true}} }
+      });
+      revenueChart.canvas.onclick=(evt)=>{
+        const p=revenueChart.getElementsAtEventForMode(evt,'nearest',{intersect:true},true); if(!p.length) return;
+        const i=p[0].index; const name=labels[i];
+        window.dispatchEvent(new CustomEvent("select-mun",{detail:{name}}));
+      };
+    }
 
-    window.addEventListener("message", (e) => {
-      const ev = e.data || {}; if (ev.type !== "financeData") return; renderCharts(ev.data, ev.fields, ev.colorMap || {});
+    /* ================= ArcGIS ================= */
+    require([
+      "esri/Map","esri/views/MapView","esri/layers/FeatureLayer","esri/renderers/UniqueValueRenderer","esri/layers/support/LabelClass"
+    ], function(Map,MapView,FeatureLayer,UniqueValueRenderer,LabelClass){
+
+      const layer=new FeatureLayer({ url:SERVICE_URL, outFields:["*"], popupEnabled:false });
+
+      // labels
+      layer.labelsVisible=true;
+      layer.labelingInfo=[new LabelClass({
+        labelExpressionInfo:{ expression:`$feature.${FIELDS.name}` },
+        symbol:{ type:"text", color:"#000", haloColor:"#fff", haloSize:1.5, font:{size:14,family:"Cairo, Arial"} }
+      })];
+
+      const map=new Map({ basemap:"osm", layers:[layer] });
+      const view=new MapView({ container:"viewDiv", map });
+
+      const colorMap={};
+      function hsl(h,s,l){ s=Math.max(0,Math.min(1,s)); l=Math.max(0,Math.min(1,l));
+        const c=(1-Math.abs(2*l-1))*s, hp=h/60, x=c*(1-Math.abs(hp%2-1)); let [r,g,b]=[0,0,0];
+        if(0<=hp&&hp<1)[r,g,b]=[c,x,0]; else if(1<=hp&&hp<2)[r,g,b]=[x,c,0];
+        else if(2<=hp&&hp<3)[r,g,b]=[0,c,x]; else if(3<=hp&&hp<4)[r,g,b]=[0,x,c];
+        else if(4<=hp&&hp<5)[r,g,b]=[x,0,c]; else [r,g,b]=[c,0,x];
+        const m=l-c/2; r=Math.round((r+m)*255); g=Math.round((g+m)*255); b=Math.round((b+m)*255);
+        return `rgba(${r},${g},${b},0.6)`; }  /* 40% شفافية */
+
+      function uniqueRenderer(names){
+        return new UniqueValueRenderer({
+          field:FIELDS.name,
+          defaultSymbol:{ type:"simple-fill", color:"rgba(200,200,200,0.6)", outline:{color:"#000", width:1.5}},
+          uniqueValueInfos:names.map((nm,i)=>{ const col=colorMap[nm]||(colorMap[nm]=hsl(i*(360/Math.max(1,names.length)),0.65,0.55));
+            return { value:nm, label:nm, symbol:{ type:"simple-fill", color:col, outline:{color:"#000", width:1.5}} }; })
+        });
+      }
+
+      function populateFilters(){
+        const el=$("filterCategory");
+        el.innerHTML=`<option value="">— الكل —</option>`;
+        [...new Set(allRows.map(r=>r[FIELDS.category]).filter(Boolean))].sort()
+          .forEach(c=>{ const opt=document.createElement("option"); opt.value=c; opt.textContent=c; el.appendChild(opt); });
+      }
+
+      function applyFilters(){
+        const cat=$("filterCategory").value, ach=$("filterAchieved").value, q=($("searchName").value||"").trim();
+        filtered=allRows.filter(r=>{
+          if(cat && r[FIELDS.category]!==cat) return false;
+          if(ach && (r[FIELDS.yn_achieved]??"")!==ach) return false;
+          if(q && !String(r[FIELDS.name]||"").includes(q)) return false;
+          return true;
+        });
+
+        $("scope").textContent = selectedName
+          ? `اسم البلدية: ${selectedName} : ${filtered.filter(r=>r[FIELDS.name]===selectedName).length}`
+          : `عرض جميع البلديات (حسب المرشحات) — العدد: ${filtered.length}`;
+
+        // لا نقوم بتصفية الخريطة عند النقر؛ فقط تمييز للحفاظ على ظهور الجميع.
+        const rowsForDash = selectedName ? filtered.filter(r=>r[FIELDS.name]===selectedName) : filtered;
+
+        updateKPIs(rowsForDash);
+        renderRevenueBar(rowsForDash, colorMap);
+        renderPies(filtered); // pies تعتمد على المرشحات فقط
+      }
+
+      // UI events
+      $("filterCategory").addEventListener("change", applyFilters);
+      $("filterAchieved").addEventListener("change", applyFilters);
+      $("searchName").addEventListener("input", ()=>{ clearTimeout(window.__t); window.__t=setTimeout(applyFilters,250); });
+      $("clearBtn").addEventListener("click", ()=>{ $("filterCategory").value=""; $("filterAchieved").value=""; $("searchName").value=""; selectedName=null; if(highlight) highlight.remove(); applyFilters(); });
+      $("resetBtn").addEventListener("click", ()=>{ selectedName=null; if(highlight) highlight.remove(); applyFilters(); });
+
+      // chart -> map selection
+      window.addEventListener("select-mun", (e)=>{
+        selectedName = e.detail?.name || null;
+        applyFilters(); // تحديث المؤشرات فقط
+        if(!selectedName) return;
+        view.whenLayerView(layer).then(async (lv)=>{
+          const res = await lv.queryFeatures({ where: `${FIELDS.name}='${String(selectedName).replace(/'/g,"''")}'` });
+          if (highlight) highlight.remove();
+          if (res.features.length){ highlight = lv.highlight(res.features[0]); view.goTo(res.features[0].geometry.extent.expand(1.5)).catch(()=>{}); }
+        });
+      });
+
+      // init map + data
+      view.when(async ()=>{
+        await layer.when();
+        const q = await layer.queryFeatures({ where:"1=1", outFields:["*"], returnGeometry:true });
+        allRows = q.features.map(g => ({ ...g.attributes, OBJECTID:g.attributes.OBJECTID }));
+
+        const names=[...new Set(allRows.map(r=>r[FIELDS.name]).filter(Boolean))];
+        names.forEach((nm,i)=>{ if(!colorMap[nm]) colorMap[nm]=hsl(i*(360/Math.max(1,names.length)),0.65,0.55); });
+        layer.renderer = uniqueRenderer(names);
+
+        if (layer.fullExtent) view.goTo(layer.fullExtent.expand(1.1)).catch(()=>{});
+        populateFilters();
+        applyFilters();
+
+        // map click -> highlight only (no filtering)
+        view.on("click", async (evt)=>{
+          const hit=await view.hitTest(evt);
+          const g=hit.results.find(r=>r.graphic && r.graphic.layer===layer)?.graphic;
+          if(!g){ selectedName=null; if(highlight) highlight.remove(); applyFilters(); return; }
+          if(highlight) highlight.remove();
+          view.whenLayerView(layer).then(lv=>{ highlight=lv.highlight(g); });
+          selectedName=g.attributes[FIELDS.name]||null;
+          applyFilters();
+        });
+      });
     });
   </script>
 </body>
