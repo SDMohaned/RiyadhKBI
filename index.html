@@ -52,7 +52,7 @@
       margin: 10px;
       border: 3px solid var(--frame);
       border-radius: 14px;
-      background: rgba(255,255,255,0.4);  /* 40% transparent */
+      background: rgba(255,255,255,0.4);
       backdrop-filter: blur(8px);
       display: grid;
       grid-template-columns: repeat(auto-fit,minmax(230px,1fr));
@@ -250,7 +250,7 @@
     return Number(s)||0;
   };
 
-  let all=[],filtered=[],selectedName=null,pieChart=null,layer,view,highlightHandle=null;
+  let all=[],filtered=[],selectedName=null,pieChart=null,layer,view,highlightHandle=null,lv=null;
 
   const renderPie=(t,c,ach)=>{
     if(pieChart) pieChart.destroy();
@@ -290,9 +290,21 @@
 
   async function zoomToSelection(val){
     if(!val || !layer || !view) return;
-    const q=await layer.queryFeatures({where:`${FIELDS.name}='${val}'`,returnGeometry:true});
+    const safeVal = String(val).replace(/'/g,"''"); // escape quotes
+    const q=await layer.queryFeatures({where:`${FIELDS.name}='${safeVal}'`,returnGeometry:true});
     if(q.features.length && q.features[0].geometry){
       view.goTo(q.features[0].geometry.extent.expand(1.5)).catch(()=>{});
+    }
+  }
+
+  async function highlightByName(val){
+    if(!val || !lv) { if(highlightHandle){highlightHandle.remove(); highlightHandle=null;} return; }
+    const safeVal = String(val).replace(/'/g,"''"); // escape quotes
+    const q = await layer.queryFeatures({ where: `${FIELDS.name}='${safeVal}'`, returnGeometry: false, outFields: ["*"] });
+    if (highlightHandle){ highlightHandle.remove(); highlightHandle=null; }
+    if (q.features.length){
+      // IMPORTANT: pass FEATURES (or objectIds), not attributes
+      highlightHandle = lv.highlight(q.features);
     }
   }
 
@@ -305,7 +317,13 @@
       return true;
     });
     updateKPIs(filtered.length?filtered:all);
-    if(mun) zoomToSelection(mun);
+
+    if(mun){
+      zoomToSelection(mun);
+      highlightByName(mun); // << highlight selection from dropdown
+    }else{
+      if(highlightHandle){highlightHandle.remove(); highlightHandle=null;}
+    }
   }
 
   function populateFilters(){
@@ -351,14 +369,22 @@
 
       if(layer.fullExtent) view.goTo(layer.fullExtent.expand(1.1));
 
-      const lv=await view.whenLayerView(layer);
+      // One shared LayerView for highlights
+      lv = await view.whenLayerView(layer);
 
+      // Click to highlight + sync dropdown
       view.on("click", async evt=>{
         const hit=await view.hitTest(evt);
         const g=hit.results.find(r=>r.graphic&&r.graphic.layer===layer)?.graphic;
-        if(!g){selectedName=null;if(highlightHandle){highlightHandle.remove();highlightHandle=null;}applyFilters();return;}
-        if(highlightHandle)highlightHandle.remove();
-        highlightHandle=lv.highlight(g);
+        if(!g){
+          selectedName=null;
+          if(highlightHandle){highlightHandle.remove();highlightHandle=null;}
+          $("filterMun").value="";
+          applyFilters();
+          return;
+        }
+        if(highlightHandle){highlightHandle.remove();highlightHandle=null;}
+        highlightHandle=lv.highlight(g); // pass the graphic (feature)
         selectedName=g.attributes[FIELDS.name];
         $("filterMun").value=selectedName;
         applyFilters();
@@ -368,11 +394,28 @@
       $("filterCategory").onchange=applyFilters;
       $("filterAchieved").onchange=applyFilters;
       $("filterMun").onchange=applyFilters;
-      $("resetBtn").onclick=()=>{selectedName=null;filtered=all.slice();$("filterCategory").value="";$("filterAchieved").value="";$("filterMun").value="";updateKPIs(all);view.goTo(layer.fullExtent.expand(1.1));};
-      $("clearBtn").onclick=()=>{filtered=all.slice();updateKPIs(all);view.goTo(layer.fullExtent.expand(1.1));};
+
+      $("resetBtn").onclick=()=>{
+        selectedName=null;
+        if(highlightHandle){highlightHandle.remove();highlightHandle=null;}
+        filtered=all.slice();
+        $("filterCategory").value="";
+        $("filterAchieved").value="";
+        $("filterMun").value="";
+        updateKPIs(all);
+        if(layer.fullExtent) view.goTo(layer.fullExtent.expand(1.1));
+      };
+
+      $("clearBtn").onclick=()=>{
+        selectedName=null;
+        if(highlightHandle){highlightHandle.remove();highlightHandle=null;}
+        filtered=all.slice();
+        $("filterMun").value="";
+        updateKPIs(all);
+        if(layer.fullExtent) view.goTo(layer.fullExtent.expand(1.1));
+      };
     });
   });
   </script>
 </body>
 </html>
-
