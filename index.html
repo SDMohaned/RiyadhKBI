@@ -5,6 +5,27 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>لوحة المؤشرات المالية للبلديات</title>
 
+  <!-- Font -->
+  <style>
+  @font-face {
+    font-family: 'Bahij TheSansArabic';
+    src: local('Bahij TheSansArabic'),
+         url('D:/Work/Eng_Yazeed/Data/BahijTheSansArabic-Bold.woff2') format('woff2');
+    font-weight: 700;
+    font-style: normal;
+  }
+  html, body {
+    font-family: 'Bahij TheSansArabic', 'Cairo', Arial, sans-serif;
+    font-weight: 700;
+    margin: 0;
+    padding: 0;
+    height: 100vh;
+    overflow: hidden;
+    background: #fff;
+    color: #fff; /* default white text */
+  }
+  </style>
+
   <!-- ArcGIS -->
   <link rel="stylesheet" href="https://js.arcgis.com/4.29/esri/themes/light/main.css" />
   <script src="https://js.arcgis.com/4.29/"></script>
@@ -15,229 +36,276 @@
   <script>window.define=window.__amd_define_backup__;window.__amd_define_backup__=undefined;</script>
 
   <style>
-    :root{
+    :root {
       --frame:#000; --navy:#0a4b78; --green:#16a34a; --red:#ef4444;
-      --fs:22px; --fs-title:28px; --fs-small:18px;
-    }
-    html,body{
-      margin:0; padding:0; height:100vh; overflow:hidden;
-      font-family:"Cairo",Arial,sans-serif; background:#fff; color:#0f172a;
-    }
-    body.has-bg{
-      background-size:cover;
-      background-attachment:fixed;
-      background-position:center;
-      background-repeat:no-repeat;
     }
 
-    /* KPI Section */
-    .kpis-wrap{
-      position:relative; margin:12px;
-      border:3px solid var(--frame); border-radius:14px;
-      background:rgba(255,255,255,0.9);
-      backdrop-filter:blur(2px); overflow:hidden;
-      box-shadow:0 6px 16px rgba(0,0,0,0.12);
-    }
-    .kpis-watermark{
-      position:absolute; inset:0;
-      background-position:center;
-      background-repeat:no-repeat;
-      background-size:520px auto; opacity:.12;
-      pointer-events:none;
-    }
-    .kpis{
-      position:relative; z-index:1;
-      display:grid; grid-template-columns:repeat(auto-fit,minmax(240px,1fr));
-      gap:14px; padding:14px;
-    }
-    .kpi{
-      background:#fff; border:3px solid var(--frame);
-      border-radius:14px; padding:16px; text-align:center;
-    }
-    .kpi .label{font-size:20px;color:var(--navy);font-weight:900;}
-    .kpi .value{
-      font-size:34px; font-weight:900; color:var(--green);
-      display:flex;align-items:center;justify-content:center;gap:10px;
-    }
-    .tri{width:0;height:0;border-left:10px solid transparent;border-right:10px solid transparent;}
-    .tri-up{border-bottom:16px solid var(--green);}
-    .tri-down{border-top:16px solid var(--red);}
-
-    /* Grid Layout */
-    .grid{
-      display:grid;
-      grid-template-columns:1.6fr 0.7fr 0.5fr;
-      gap:14px; padding:14px;
-      height:calc(100vh - 260px);
-      overflow:hidden;
-    }
-    .card{
-      border:3px solid var(--frame);
-      border-radius:14px; padding:14px;
-    }
-    .title{
-      font-weight:900; color:var(--navy);
-      font-size:var(--fs-title);
-      margin-bottom:10px; text-align:center;
-    }
-    .glass-strong{
-      background:rgba(255,255,255,0.85);
-      backdrop-filter:blur(6px);
-      box-shadow:0 6px 16px rgba(0,0,0,0.15);
-    }
-    .glass{
-      background:rgba(255,255,255,0.5);
-      backdrop-filter:blur(6px);
-      box-shadow:0 6px 16px rgba(0,0,0,0.12);
+    body.has-bg {
+      background-image: url("https://raw.githubusercontent.com/SDMohaned/RiyadhKBI/main/background.png");
+      background-size: cover;
+      background-position: center;
+      background-repeat: no-repeat;
     }
 
-    /* Map and Chart */
-    #viewDiv{
-      flex:1 1 auto;
-      width:100%; height:100%;
-      min-height:75vh;
-      border:3px solid var(--frame);
-      border-radius:12px;
-      overflow:hidden;
-      background:#fff;
+    /* Transparent KPI Section */
+    .kpis-wrap {
+      margin: 10px;
+      border: 3px solid var(--frame);
+      border-radius: 14px;
+      background: rgba(255,255,255,0.4);  /* 40% transparent */
+      backdrop-filter: blur(8px);
+      display: grid;
+      grid-template-columns: repeat(auto-fit,minmax(230px,1fr));
+      gap: 10px;
+      padding: 14px;
     }
-    #chartPie{width:100%!important;height:280px!important;}
-    #pieCenter{
-      position:absolute;left:0;right:0;text-align:center;
-      font-weight:900;font-size:32px;color:var(--green);
-      top:52%;transform:translateY(-50%);
-      pointer-events:none;opacity:0;transition:opacity .4s ease;
+
+    .kpi {
+      background: rgba(255,255,255,0.9);
+      border: 3px solid var(--frame);
+      border-radius: 14px;
+      padding: 10px;
+      text-align: center;
+      box-shadow: 0 4px 10px rgba(0,0,0,0.08);
     }
-    #pieWrap{position:relative;}
-    .legend-scope{text-align:center;color:var(--navy);font-weight:800;margin-top:6px;}
-    #filters label{font-weight:900;color:var(--navy);display:block;margin-bottom:6px;}
-    #filters select{
-      width:100%;padding:10px;font-size:20px;
-      border:3px solid var(--frame);border-radius:12px;background:#fff;
+
+    .label { color: var(--navy); font-size: 18px; font-weight: 900; }
+    .value { font-size: 28px; font-weight: 900; color: var(--green); }
+
+    /* Layout */
+    .grid {
+      display: grid;
+      grid-template-columns: 1.8fr 0.6fr;
+      gap: 12px;
+      padding: 12px;
+      height: calc(100vh - 250px);
     }
-    .btn{
-      font-size:20px;padding:10px;
-      border:3px solid var(--frame);border-radius:12px;background:#fff;cursor:pointer;
+
+    .card {
+      border: 3px solid var(--frame);
+      border-radius: 14px;
+      padding: 12px;
+      background: rgba(255,255,255,0.4);
+      backdrop-filter: blur(8px);
+      color: #fff; /* white text for all card content */
     }
-    .btn:hover{background:#dbeafe;}
-    footer{
-      border-top:3px solid var(--frame);
-      padding:12px;text-align:center;
-      background:#fff;font-size:var(--fs-small);color:var(--navy);
+
+    .title {
+      text-align: center;
+      font-weight: 900;
+      color: #fff; /* white titles */
+      font-size: 22px;
+      margin-bottom: 6px;
+    }
+
+    /* Map */
+    #viewDiv {
+      width: 100%;
+      height: 100%;
+      border: 3px solid var(--frame);
+      border-radius: 12px;
+      background: #fff;
+    }
+
+    /* Filters main panel */
+    #filters {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    /* Sub-panels inside filters */
+    .sub-panel {
+      border: 3px solid var(--frame);
+      border-radius: 14px;
+      padding: 10px;
+      background: rgba(255,255,255,0.4);
+      backdrop-filter: blur(8px);
+      color: #fff;
+    }
+
+    .sub-panel label {
+      color: #fff;
+      font-weight: 900;
+      font-size: 18px;
+      display: block;
+      margin-top: 6px;
+    }
+
+    .sub-panel select {
+      width: 100%;
+      padding: 8px;
+      font-size: 18px;
+      border: 3px solid var(--frame);
+      border-radius: 12px;
+      background: #fff;
+      color: #000; /* dropdown text black for readability */
+      margin-bottom: 8px;
+    }
+
+    .btn {
+      padding: 8px;
+      font-size: 18px;
+      border: 3px solid var(--frame);
+      border-radius: 12px;
+      background: #fff;
+      color: #000;
+      cursor: pointer;
+      font-weight: 700;
+    }
+    .btn:hover { background: #dbeafe; }
+
+    /* Pie Chart */
+    #chartPie {
+      width: 100%;
+      max-width: 260px;
+      aspect-ratio: 1 / 1;
+      display: block;
+      margin: 14px auto;
+      border: 3px solid var(--frame);
+      border-radius: 14px;
+      padding: 8px;
+      background: rgba(255,255,255,0.4);
+      backdrop-filter: blur(6px);
+    }
+
+    .legend-scope {
+      text-align: center;
+      color: #fff;
+      font-weight: 800;
+      margin-top: 6px;
+    }
+
+    footer {
+      text-align: center;
+      border-top: 3px solid var(--frame);
+      padding: 10px;
+      color: #fff;
     }
   </style>
 </head>
 
-<body>
+<body class="has-bg">
   <section class="kpis-wrap">
-    <div id="kpisWM" class="kpis-watermark"></div>
-    <div class="kpis">
-      <div class="kpi"><div class="label">إجمالي الإيرادات المستهدفة</div><div id="kpiTarget" class="value">—</div></div>
-      <div class="kpi"><div class="label">إجمالي الإيرادات المحصّلة</div><div id="kpiCollected" class="value">—</div></div>
-      <div class="kpi"><div class="label">نسبة تحقيق الإيرادات</div><div id="kpiAchPct" class="value">—</div></div>
-      <div class="kpi"><div class="label">متوسط الصرف</div><div id="kpiAvgSpend" class="value">—</div></div>
-      <div class="kpi"><div class="label">نسبة الرضا</div><div id="kpiSatisfaction" class="value">—</div></div>
-    </div>
+    <div class="kpi"><div class="label">إجمالي الإيرادات المستهدفة</div><div id="kpiTarget" class="value">—</div></div>
+    <div class="kpi"><div class="label">إجمالي الإيرادات المحصّلة</div><div id="kpiCollected" class="value">—</div></div>
+    <div class="kpi"><div class="label">نسبة تحقيق الإيرادات</div><div id="kpiAchPct" class="value">—</div></div>
+    <div class="kpi"><div class="label">متوسط الصرف</div><div id="kpiAvgSpend" class="value">—</div></div>
+    <div class="kpi"><div class="label">نسبة الرضا</div><div id="kpiSatisfaction" class="value">—</div></div>
   </section>
 
   <main class="grid">
-    <section id="mapCard" class="card glass-strong">
+    <section id="mapCard" class="card">
       <div class="title">الخريطة</div>
       <div id="viewDiv"></div>
     </section>
 
-    <section id="pieCard" class="card glass-strong">
-      <div class="title">مجموع المستهدفة و مجموع المحصّلة</div>
-      <div id="pieWrap">
-        <canvas id="chartPie"></canvas>
-        <div id="pieCenter"></div>
-      </div>
-      <div id="pieScope" class="legend-scope">النطاق: كل البلديات</div>
-    </section>
-
-    <aside id="filters" class="card glass">
-      <div class="title">المرشحات</div>
-      <div><label for="filterCategory">الفئة</label><select id="filterCategory"></select></div>
-      <div><label for="filterAchieved">تحقيق المستهدف</label>
+    <!-- Right side panels -->
+    <aside id="filters">
+      <div class="sub-panel">
+        <div class="title">المرشحات</div>
+        <label>الفئة</label><select id="filterCategory"></select>
+        <label>تحقيق المستهدف</label>
         <select id="filterAchieved"><option value="">— الكل —</option><option value="نعم">نعم</option><option value="لا">لا</option></select>
+        <label>البلدية</label><select id="filterMun"></select>
+        <div style="display:flex;gap:6px;margin:8px 0;">
+          <button class="btn" id="resetBtn">إظهار الكل</button>
+          <button class="btn" id="clearBtn">مسح</button>
+        </div>
       </div>
-      <div><label for="filterMun">البلدية</label><select id="filterMun"></select></div>
-      <div style="margin-top:12px;display:flex;gap:10px;">
-        <button id="resetBtn" class="btn">إظهار الكل</button>
-        <button id="clearBtn" class="btn">مسح المرشحات</button>
+
+      <div class="sub-panel">
+        <div class="title">مجموع المستهدفة و المحصّلة</div>
+        <canvas id="chartPie"></canvas>
+        <div id="pieScope" class="legend-scope">النطاق: كل البلديات</div>
+      </div>
+
+      <div class="sub-panel">
+        <div class="title">— مخصص للتطوير لاحقًا —</div>
+        <p style="text-align:center;color:#ddd;font-size:16px;">(سيضاف محتوى إضافي في الإصدارات القادمة)</p>
       </div>
     </aside>
   </main>
 
-  <footer><strong>Powered by : Eng. Mohaned</strong></footer>
+  <footer><strong>Powered by: Eng. Mohaned</strong></footer>
 
+  <!-- JavaScript -->
   <script>
-  /* Local paths */
-  const LOGO_RIYADH="https://raw.githubusercontent.com/SDMohaned/RiyadhKBI/main/Logo_Amana.png";
-  const LOGO_GCLA="https://raw.githubusercontent.com/SDMohaned/RiyadhKBI/main/GCLA.jpg";
-  const BG_TEXTURE="https://raw.githubusercontent.com/SDMohaned/RiyadhKBI/main/background.png";
-
-  const SERVICE_URL = "https://services5.arcgis.com/pbXsNv81cTqt6LrT/arcgis/rest/services/Map/FeatureServer/0";
-  const FIELDS = {
-    name:'البلدية',
-    target:'مجموع_المستهدفة',
-    collected:'مجموع_المحصلة',
-    achPct:'نسبة_الإيراد_',
-    avgSpend:'متوسط_الصرف',
-    satisfaction:'نسبة_الرضا',
-    category:'الفئة',
-    achieved:'حققت_المستهدف'
-  };
+  const SERVICE_URL="https://services5.arcgis.com/pbXsNv81cTqt6LrT/arcgis/rest/services/Map/FeatureServer/0";
+  const FIELDS={name:'البلدية',target:'مجموع_المستهدفة',collected:'مجموع_المحصلة',achPct:'نسبة_الإيراد_',avgSpend:'متوسط_الصرف',satisfaction:'نسبة_الرضا',category:'الفئة',achieved:'حققت_المستهدف'};
 
   const $=id=>document.getElementById(id);
   const fmt=(n,d=1)=>isNaN(n)?'—':new Intl.NumberFormat('ar-SA',{maximumFractionDigits:d}).format(n);
-  const toNumber=v=>{if(v==null)return 0;return Number(String(v).replace(/[^\d.-]/g,''))||0;};
+  const toNumber=v=>{
+    if(v==null)return 0;
+    const map={'٠':'0','١':'1','٢':'2','٣':'3','٤':'4','٥':'5','٦':'6','٧':'7','٨':'8','٩':'9','٫':'.','٬':','};
+    let s=String(v).replace(/[٠-٩٫٬]/g,ch=>map[ch]||ch).replace(/,/g,'');
+    return Number(s)||0;
+  };
 
-  let all=[],filtered=[],layer,view,pieChart=null,selectedName=null;
+  let all=[],filtered=[],selectedName=null,pieChart=null,layer,view,highlightHandle=null;
 
-  /* Initialize visuals */
-  (function initBranding(){
-    document.body.classList.add('has-bg');
-    document.body.style.backgroundImage=`url('${BG_TEXTURE}')`;
-    $("kpisWM").style.backgroundImage=`url('${LOGO_RIYADH}')`;
-  })();
+  const renderPie=(t,c,ach)=>{
+    if(pieChart) pieChart.destroy();
+    const data={labels:['الإيراد المحصّل','الإيراد المستهدف'],
+      datasets:[{data:[c,t],backgroundColor:['#16a34a','#0a4b78'],borderColor:'#000',borderWidth:3}]};
+    pieChart=new Chart($("chartPie"),{
+      type:'doughnut',
+      data,
+      options:{
+        responsive:true,
+        maintainAspectRatio:true,
+        cutout:'68%',
+        plugins:{
+          legend:{
+            display:true,
+            position:'bottom',
+            labels:{color:'#fff',font:{family:'Bahij TheSansArabic',size:14,weight:'bold'}}
+          },
+          tooltip:{callbacks:{label:ctx=>`${ctx.label}: ${fmt(ctx.parsed,0)}`}}
+        }
+      }
+    });
+  };
 
-  /* Filtering + KPIs + Pie */
-  function populateFilters(){
-    const cats=[...new Set(all.map(r=>r[FIELDS.category]).filter(Boolean))];
-    const el=$('filterCategory'); el.innerHTML='<option value="">— الكل —</option>';
-    cats.forEach(c=>{const o=document.createElement('option');o.value=c;o.textContent=c;el.appendChild(o);});
-    const muns=[...new Set(all.map(r=>r[FIELDS.name]).filter(Boolean))];
-    const el2=$('filterMun'); el2.innerHTML='<option value="">— الكل —</option>';
-    muns.forEach(m=>{const o=document.createElement('option');o.value=m;o.textContent=m;el2.appendChild(o);});
+  function updateKPIs(rows){
+    const sum=f=>rows.reduce((s,r)=>s+toNumber(r[f]),0);
+    const avg=f=>rows.length?rows.reduce((s,r)=>s+toNumber(r[f]),0)/rows.length:0;
+    const totalT=sum(FIELDS.target), totalC=sum(FIELDS.collected);
+    const ach=avg(FIELDS.achPct)*100, spend=avg(FIELDS.avgSpend)*100, sat=avg(FIELDS.satisfaction)*100;
+    $("kpiTarget").textContent=fmt(totalT);
+    $("kpiCollected").textContent=fmt(totalC);
+    $("kpiAchPct").textContent=fmt(ach,1)+'%';
+    $("kpiAvgSpend").textContent=fmt(spend,1)+'%';
+    $("kpiSatisfaction").textContent=fmt(sat,1)+'%';
+    renderPie(totalT,totalC,ach);
   }
+
+  async function zoomToSelection(val){
+    if(!val || !layer || !view) return;
+    const q=await layer.queryFeatures({where:`${FIELDS.name}='${val}'`,returnGeometry:true});
+    if(q.features.length && q.features[0].geometry){
+      view.goTo(q.features[0].geometry.extent.expand(1.5)).catch(()=>{});
+    }
+  }
+
   function applyFilters(){
-    const cat=$('filterCategory').value,ach=$('filterAchieved').value,mun=$('filterMun').value;
+    const cat=$("filterCategory").value,ach=$("filterAchieved").value,mun=$("filterMun").value;
     filtered=all.filter(r=>{
       if(cat&&r[FIELDS.category]!==cat)return false;
       if(ach&&(r[FIELDS.achieved]||'')!==ach)return false;
       if(mun&&r[FIELDS.name]!==mun)return false;
       return true;
     });
-    selectedName=mun||null;updateDashboard();
+    updateKPIs(filtered.length?filtered:all);
+    if(mun) zoomToSelection(mun);
   }
-  function resetFilters(){$('filterCategory').value='';$('filterAchieved').value='';$('filterMun').value='';selectedName=null;filtered=all;updateDashboard();}
-  function animateCount(el,to,suffix=''){const from=0;const dur=550;const t0=performance.now();const step=t=>{const p=Math.min(1,(t-t0)/dur);const val=from+(to-from)*p;el.textContent=fmt(val,(Math.abs(to)>=100?0:1))+suffix;if(p<1)requestAnimationFrame(step);};requestAnimationFrame(step);}
-  function setTriangle(el,pct){el.innerHTML='';const v=document.createElement('span');v.id='__val';el.appendChild(v);const tri=document.createElement('span');tri.className='tri';el.appendChild(tri);animateCount(v,pct,'%');if(pct>=75){tri.classList.add('tri-up');v.style.color='var(--green)';}else{tri.classList.add('tri-down');v.style.color='var(--red)';}}
-  function updateDashboard(){
-    const rows=(filtered.length?filtered:all);
-    const sum=f=>rows.reduce((s,r)=>s+toNumber(r[f]),0);
-    const avg=f=>rows.length?rows.reduce((s,r)=>s+toNumber(r[f]),0)/rows.length:0;
-    const t=sum(FIELDS.target),c=sum(FIELDS.collected),ach=avg(FIELDS.achPct)*100,sp=avg(FIELDS.avgSpend)*100,sa=avg(FIELDS.satisfaction)*100;
-    animateCount($("kpiTarget"),t);animateCount($("kpiCollected"),c);setTriangle($("kpiAchPct"),ach);
-    animateCount($("kpiAvgSpend"),sp,'%');animateCount($("kpiSatisfaction"),sa,'%');
-    renderPie(t,c,ach);$("pieScope").textContent=selectedName?`النطاق: ${selectedName}`:'النطاق: كل البلديات';
-  }
-  function renderPie(t,c,ach){
-    const data={labels:['المحصّلة','المستهدفة'],datasets:[{data:[c,t],backgroundColor:['#16a34a','#0a4b78'],borderColor:'#000',borderWidth:3}]};
-    if(pieChart)pieChart.destroy();
-    pieChart=new Chart($("chartPie"),{type:'doughnut',data,options:{plugins:{legend:{position:'bottom'}},cutout:'68%',responsive:true,maintainAspectRatio:false}});
-    const center=$("pieCenter");center.style.opacity=0;center.textContent=fmt(ach,1)+'%';requestAnimationFrame(()=>center.style.opacity=1);
+
+  function populateFilters(){
+    const cats=[...new Set(all.map(r=>r[FIELDS.category]).filter(Boolean))];
+    $("filterCategory").innerHTML='<option value="">— الكل —</option>'+cats.map(c=>`<option>${c}</option>`).join('');
+    const muns=[...new Set(all.map(r=>r[FIELDS.name]).filter(Boolean))];
+    $("filterMun").innerHTML='<option value="">— الكل —</option>'+muns.map(c=>`<option>${c}</option>`).join('');
   }
 
   function hsl(h,s,l){
@@ -252,77 +320,51 @@
 
   require(["esri/Map","esri/views/MapView","esri/layers/FeatureLayer","esri/renderers/UniqueValueRenderer","esri/layers/support/LabelClass"],
   (Map,MapView,FeatureLayer,UniqueValueRenderer,LabelClass)=>{
-    const layer=new FeatureLayer({url:SERVICE_URL,outFields:["*"],popupEnabled:false});
+    layer=new FeatureLayer({url:SERVICE_URL,outFields:["*"],popupEnabled:false});
     layer.labelsVisible=true;
     layer.labelingInfo=[new LabelClass({labelExpressionInfo:{expression:`$feature.${FIELDS.name}`},
-      symbol:{type:"text",color:"#000",haloColor:"#fff",haloSize:1.5,font:{size:14,family:"Cairo, Arial"}}})];
-    const map=new Map({basemap:"osm",layers:[layer]});
-    const view=new MapView({container:"viewDiv",map});
-    view.highlightOptions={color:[14,165,233,1.0],haloOpacity:0.9,fillOpacity:0.15};
+      symbol:{type:"text",color:"#000",haloColor:"#fff",haloSize:1.5,font:{size:14,family:"Bahij TheSansArabic, Arial"}}})];
+    const map=new Map({basemap:"topo-vector",layers:[layer]});
+    view=new MapView({container:"viewDiv",map});
+
     view.when(async()=>{
       await layer.when();
       const q=await layer.queryFeatures({where:"1=1",outFields:["*"],returnGeometry:true});
       all=q.features.map(f=>f.attributes);
+      populateFilters();
       filtered=all.slice();
+      updateKPIs(all);
+
       const names=[...new Set(all.map(r=>r[FIELDS.name]).filter(Boolean))];
       layer.renderer=new UniqueValueRenderer({
         field:FIELDS.name,
-        defaultSymbol:{type:'simple-fill',color:'rgba(255,255,255,0.8)',outline:{color:'#000',width:1.2}},
-        uniqueValueInfos:names.map((nm,i)=>({
-          value:nm,label:nm,
-          symbol:{type:'simple-fill',color:hsl(i*(360/Math.max(1,names.length)),0.45,0.55),outline:{color:'#000',width:1.2}}
-        }))
+        defaultSymbol:{type:"simple-fill",color:"rgba(230,230,230,0.6)",outline:{color:"#000",width:1}},
+        uniqueValueInfos:names.map((nm,i)=>({value:nm,label:nm,symbol:{type:"simple-fill",color:hsl(i*(360/names.length),0.5,0.6),outline:{color:"#000",width:1}}}))
       });
-      if(layer.fullExtent)view.goTo(layer.fullExtent.expand(1.05)).catch(()=>{});
-      populateFilters();updateDashboard();
+
+      if(layer.fullExtent) view.goTo(layer.fullExtent.expand(1.1));
+
+      const lv=await view.whenLayerView(layer);
+
+      view.on("click", async evt=>{
+        const hit=await view.hitTest(evt);
+        const g=hit.results.find(r=>r.graphic&&r.graphic.layer===layer)?.graphic;
+        if(!g){selectedName=null;if(highlightHandle){highlightHandle.remove();highlightHandle=null;}applyFilters();return;}
+        if(highlightHandle)highlightHandle.remove();
+        highlightHandle=lv.highlight(g);
+        selectedName=g.attributes[FIELDS.name];
+        $("filterMun").value=selectedName;
+        applyFilters();
+        if(g.geometry?.extent)view.goTo(g.geometry.extent.expand(1.3)).catch(()=>{});
+      });
 
       $("filterCategory").onchange=applyFilters;
       $("filterAchieved").onchange=applyFilters;
-      $("filterMun").onchange=async()=>{
-        applyFilters();
-        const val=$("filterMun").value;
-        if(val){
-          const q=await layer.queryFeatures({where:`${FIELDS.name}='${val}'`,returnGeometry:true});
-          if(q.features.length)view.goTo(q.features[0].geometry.extent.expand(1.4)).catch(()=>{});
-        }
-      };
-
-      $("resetBtn").onclick=()=>{resetFilters();};
-      $("clearBtn").onclick=resetFilters;
-
-      let selectionHighlight=null,hoverHighlight=null,lastHoverId=null,hoverTimer=null;
-      view.on("click",async(evt)=>{
-        const hit=await view.hitTest(evt);
-        const g=hit.results.find(r=>r.graphic&&r.graphic.layer===layer)?.graphic;
-        if(selectionHighlight){selectionHighlight.remove();selectionHighlight=null;}
-        if(!g){selectedName=null;$("filterMun").value="";applyFilters();return;}
-        const lv=await view.whenLayerView(layer);selectionHighlight=lv.highlight(g);
-        selectedName=g.attributes[FIELDS.name]||null;$("filterMun").value=selectedName||"";applyFilters();
-        if(g.geometry&&g.geometry.extent)view.goTo(g.geometry.extent.expand(1.35)).catch(()=>{});
-      });
-
-      /* Hover highlight */
-      view.on("pointer-move",(evt)=>{
-        if(hoverTimer)return;
-        hoverTimer=setTimeout(async()=>{
-          hoverTimer=null;
-          const hit=await view.hitTest(evt);
-          const g=hit.results.find(r=>r.graphic&&r.graphic.layer===layer)?.graphic;
-          const lv=await view.whenLayerView(layer);
-          if(!g){
-            if(hoverHighlight){hoverHighlight.remove();hoverHighlight=null;lastHoverId=null;}
-            return;
-          }
-          const oid=g.getObjectId?g.getObjectId():g.attributes.OBJECTID;
-          if(lastHoverId===oid)return;
-          if(hoverHighlight){hoverHighlight.remove();hoverHighlight=null;}
-          hoverHighlight=lv.highlight(g);
-          lastHoverId=oid;
-        },100);
-      });
+      $("filterMun").onchange=applyFilters;
+      $("resetBtn").onclick=()=>{selectedName=null;filtered=all.slice();$("filterCategory").value="";$("filterAchieved").value="";$("filterMun").value="";updateKPIs(all);view.goTo(layer.fullExtent.expand(1.1));};
+      $("clearBtn").onclick=()=>{filtered=all.slice();updateKPIs(all);view.goTo(layer.fullExtent.expand(1.1));};
     });
   });
   </script>
 </body>
 </html>
-
